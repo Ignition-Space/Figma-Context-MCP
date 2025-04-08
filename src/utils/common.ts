@@ -12,12 +12,12 @@ export interface ColorValue {
 }
 
 /**
- * Download Figma image and save it locally
- * @param fileName - The filename to save as
- * @param localPath - The local path to save to
- * @param imageUrl - Image URL (images[nodeId])
- * @returns A Promise that resolves to the full file path where the image was saved
- * @throws Error if download fails
+ * 下载Figma图像并本地保存
+ * @param fileName - 保存的文件名
+ * @param localPath - 本地保存路径
+ * @param imageUrl - 图像URL (images[nodeId])
+ * @returns 返回一个Promise，解析为保存图像的完整文件路径
+ * @throws 如果下载失败则抛出错误
  */
 export async function downloadFigmaImage(
   fileName: string,
@@ -25,34 +25,34 @@ export async function downloadFigmaImage(
   imageUrl: string,
 ): Promise<string> {
   try {
-    // Ensure local path exists
+    // 确保本地路径存在
     if (!fs.existsSync(localPath)) {
       fs.mkdirSync(localPath, { recursive: true });
     }
 
-    // Build the complete file path
+    // 构建完整的文件路径
     const fullPath = path.join(localPath, fileName);
 
-    // Use fetch to download the image
+    // 使用fetch下载图像
     const response = await fetch(imageUrl, {
       method: "GET",
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.statusText}`);
+      throw new Error(`下载图像失败: ${response.statusText}`);
     }
 
-    // Create write stream
+    // 创建写入流
     const writer = fs.createWriteStream(fullPath);
 
-    // Get the response as a readable stream and pipe it to the file
+    // 获取响应的可读流并输出到文件
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("Failed to get response body");
+      throw new Error("获取响应主体失败");
     }
 
     return new Promise((resolve, reject) => {
-      // Process stream
+      // 处理流
       const processStream = async () => {
         try {
           while (true) {
@@ -66,51 +66,51 @@ export async function downloadFigmaImage(
           resolve(fullPath);
         } catch (err) {
           writer.end();
-          fs.unlink(fullPath, () => {});
+          fs.unlink(fullPath, () => { });
           reject(err);
         }
       };
 
       writer.on("error", (err) => {
         reader.cancel();
-        fs.unlink(fullPath, () => {});
-        reject(new Error(`Failed to write image: ${err.message}`));
+        fs.unlink(fullPath, () => { });
+        reject(new Error(`写入图像失败: ${err.message}`));
       });
 
       processStream();
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Error downloading image: ${errorMessage}`);
+    throw new Error(`下载图像时出错: ${errorMessage}`);
   }
 }
 
 /**
- * Remove keys with empty arrays or empty objects from an object.
- * @param input - The input object or value.
- * @returns The processed object or the original value.
+ * 从对象中删除包含空数组或空对象的键
+ * @param input - 输入对象或值
+ * @returns 处理后的对象或原始值
  */
 export function removeEmptyKeys<T>(input: T): T {
-  // If not an object type or null, return directly
+  // 如果不是对象类型或为null，直接返回
   if (typeof input !== "object" || input === null) {
     return input;
   }
 
-  // Handle array type
+  // 处理数组类型
   if (Array.isArray(input)) {
     return input.map((item) => removeEmptyKeys(item)) as T;
   }
 
-  // Handle object type
+  // 处理对象类型
   const result = {} as T;
   for (const key in input) {
     if (Object.prototype.hasOwnProperty.call(input, key)) {
       const value = input[key];
 
-      // Recursively process nested objects
+      // 递归处理嵌套对象
       const cleanedValue = removeEmptyKeys(value);
 
-      // Skip empty arrays and empty objects
+      // 跳过空数组和空对象
       if (
         cleanedValue !== undefined &&
         !(Array.isArray(cleanedValue) && cleanedValue.length === 0) &&
@@ -129,44 +129,44 @@ export function removeEmptyKeys<T>(input: T): T {
 }
 
 /**
- * Convert hex color value and opacity to rgba format
- * @param hex - Hexadecimal color value (e.g., "#FF0000" or "#F00")
- * @param opacity - Opacity value (0-1)
- * @returns Color string in rgba format
+ * 将十六进制颜色值和不透明度转换为rgba格式
+ * @param hex - 十六进制颜色值（例如，"#FF0000"或"#F00"）
+ * @param opacity - 不透明度值（0-1）
+ * @returns rgba格式的颜色字符串
  */
 export function hexToRgba(hex: string, opacity: number = 1): string {
-  // Remove possible # prefix
+  // 移除可能的#前缀
   hex = hex.replace("#", "");
 
-  // Handle shorthand hex values (e.g., #FFF)
+  // 处理简写的十六进制值（例如，#FFF）
   if (hex.length === 3) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
   }
 
-  // Convert hex to RGB values
+  // 将十六进制转换为RGB值
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
 
-  // Ensure opacity is in the 0-1 range
+  // 确保不透明度在0-1范围内
   const validOpacity = Math.min(Math.max(opacity, 0), 1);
 
   return `rgba(${r}, ${g}, ${b}, ${validOpacity})`;
 }
 
 /**
- * Convert color from RGBA to { hex, opacity }
+ * 将颜色从RGBA转换为{hex，opacity}
  *
- * @param color - The color to convert, including alpha channel
- * @param opacity - The opacity of the color, if not included in alpha channel
- * @returns The converted color
+ * @param color - 要转换的颜色，包括alpha通道
+ * @param opacity - 颜色的不透明度，如果不包含在alpha通道中
+ * @returns 转换后的颜色
  **/
 export function convertColor(color: RGBA, opacity = 1): ColorValue {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
 
-  // Alpha channel defaults to 1. If opacity and alpha are both and < 1, their effects are multiplicative
+  // Alpha通道默认为1。如果不透明度和alpha都<1，它们的效果是相乘的
   const a = Math.round(opacity * color.a * 100) / 100;
 
   const hex = ("#" +
@@ -176,26 +176,26 @@ export function convertColor(color: RGBA, opacity = 1): ColorValue {
 }
 
 /**
- * Convert color from Figma RGBA to rgba(#, #, #, #) CSS format
+ * 将Figma RGBA颜色转换为CSS的rgba(#, #, #, #)格式
  *
- * @param color - The color to convert, including alpha channel
- * @param opacity - The opacity of the color, if not included in alpha channel
- * @returns The converted color
+ * @param color - 要转换的颜色，包括alpha通道
+ * @param opacity - 颜色的不透明度，如果不包含在alpha通道中
+ * @returns 转换后的颜色
  **/
 export function formatRGBAColor(color: RGBA, opacity = 1): CSSRGBAColor {
   const r = Math.round(color.r * 255);
   const g = Math.round(color.g * 255);
   const b = Math.round(color.b * 255);
-  // Alpha channel defaults to 1. If opacity and alpha are both and < 1, their effects are multiplicative
+  // Alpha通道默认为1。如果不透明度和alpha都<1，它们的效果是相乘的
   const a = Math.round(opacity * color.a * 100) / 100;
 
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
 /**
- * Generate a 6-character random variable ID
- * @param prefix - ID prefix
- * @returns A 6-character random ID string with prefix
+ * 生成一个6字符的随机变量ID
+ * @param prefix - ID前缀
+ * @returns 带前缀的6字符随机ID字符串
  */
 export function generateVarId(prefix: string = "var"): StyleId {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -210,19 +210,19 @@ export function generateVarId(prefix: string = "var"): StyleId {
 }
 
 /**
- * Generate a CSS shorthand for values that come with top, right, bottom, and left
+ * 为具有上、右、下、左值的属性生成CSS简写形式
  *
- * input: { top: 10, right: 10, bottom: 10, left: 10 }
- * output: "10px"
+ * 输入: { top: 10, right: 10, bottom: 10, left: 10 }
+ * 输出: "10px"
  *
- * input: { top: 10, right: 20, bottom: 10, left: 20 }
- * output: "10px 20px"
+ * 输入: { top: 10, right: 20, bottom: 10, left: 20 }
+ * 输出: "10px 20px"
  *
- * input: { top: 10, right: 20, bottom: 30, left: 40 }
- * output: "10px 20px 30px 40px"
+ * 输入: { top: 10, right: 20, bottom: 30, left: 40 }
+ * 输出: "10px 20px 30px 40px"
  *
- * @param values - The values to generate the shorthand for
- * @returns The generated shorthand
+ * @param values - 生成简写形式的值
+ * @returns 生成的简写形式
  */
 export function generateCSSShorthand(
   values: {
@@ -236,11 +236,11 @@ export function generateCSSShorthand(
     suffix = "px",
   }: {
     /**
-     * If true and all values are 0, return undefined. Defaults to true.
+     * 如果为true且所有值都为0，则返回undefined。默认为true。
      */
     ignoreZero?: boolean;
     /**
-     * The suffix to add to the shorthand. Defaults to "px".
+     * 添加到简写形式的后缀。默认为"px"。
      */
     suffix?: string;
   } = {},

@@ -17,42 +17,55 @@ export interface FigmaError {
 
 type FetchImageParams = {
   /**
-   * The Node in Figma that will either be rendered or have its background image downloaded
+   * Figma中的节点，将被渲染或下载其背景图像
    */
   nodeId: string;
   /**
-   * The local file name to save the image
+   * 保存图像的本地文件名
    */
   fileName: string;
   /**
-   * The file mimetype for the image
+   * 图像的文件MIME类型
    */
   fileType: "png" | "svg";
 };
 
 type FetchImageFillParams = Omit<FetchImageParams, "fileType"> & {
   /**
-   * Required to grab the background image when an image is used as a fill
+   * 当图像用作填充时，需要获取背景图像
    */
   imageRef: string;
 };
 
+/**
+ * Figma服务类，提供与Figma API的所有交互功能
+ */
 export class FigmaService {
   private readonly apiKey: string;
   private readonly baseUrl = "https://api.figma.com/v1";
 
+  /**
+   * 创建Figma服务实例
+   * @param apiKey - Figma API密钥
+   */
   constructor(apiKey: string) {
     this.apiKey = apiKey;
   }
 
+  /**
+   * 向Figma API发送请求
+   * @param endpoint - API端点路径
+   * @returns 请求结果的Promise
+   * @throws 如果请求失败则抛出错误
+   */
   private async request<T>(endpoint: string): Promise<T> {
     if (typeof fetch !== "function") {
       throw new Error(
-        "The MCP server is being run in a Node.js environment where `fetch` is not available. You won't be able to access any data related to the Figma file.\n\nAs the coding AI assistant, PLEASE ABORT THE CURRENT REQUEST. No alternate approaches will work. Help the user fix this issue so you can proceed by letting them know that they need to run the MCP server with Node.js version 18 or higher.",
+        "MCP服务器在无法使用`fetch`的Node.js环境中运行。你将无法访问与Figma文件相关的任何数据。\n\n作为AI编码助手，请中止当前请求。没有其他替代方法可行。请告知用户需要使用Node.js 18或更高版本运行MCP服务器，以解决此问题。",
       );
     }
     try {
-      Logger.log(`Calling ${this.baseUrl}${endpoint}`);
+      Logger.log(`调用 ${this.baseUrl}${endpoint}`);
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
           "X-Figma-Token": this.apiKey,
@@ -62,7 +75,7 @@ export class FigmaService {
       if (!response.ok) {
         throw {
           status: response.status,
-          err: response.statusText || "Unknown error",
+          err: response.statusText || "未知错误",
         } as FigmaError;
       }
 
@@ -72,12 +85,19 @@ export class FigmaService {
         throw error;
       }
       if (error instanceof Error) {
-        throw new Error(`Failed to make request to Figma API: ${error.message}`);
+        throw new Error(`请求Figma API失败: ${error.message}`);
       }
-      throw new Error(`Failed to make request to Figma API: ${error}`);
+      throw new Error(`请求Figma API失败: ${error}`);
     }
   }
 
+  /**
+   * 获取图像填充
+   * @param fileKey - Figma文件key
+   * @param nodes - 包含imageRef的节点列表
+   * @param localPath - 保存图像的本地路径
+   * @returns 下载的文件名数组
+   */
   async getImageFills(
     fileKey: string,
     nodes: FetchImageFillParams[],
@@ -99,6 +119,13 @@ export class FigmaService {
     return Promise.all(promises);
   }
 
+  /**
+   * 获取节点图像
+   * @param fileKey - Figma文件key
+   * @param nodes - 要获取图像的节点列表
+   * @param localPath - 保存图像的本地路径
+   * @returns 下载的文件名数组
+   */
   async getImages(
     fileKey: string,
     nodes: FetchImageParams[],
@@ -108,16 +135,16 @@ export class FigmaService {
     const pngFiles =
       pngIds.length > 0
         ? this.request<GetImagesResponse>(
-            `/images/${fileKey}?ids=${pngIds.join(",")}&scale=2&format=png`,
-          ).then(({ images = {} }) => images)
+          `/images/${fileKey}?ids=${pngIds.join(",")}&scale=2&format=png`,
+        ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
     const svgIds = nodes.filter(({ fileType }) => fileType === "svg").map(({ nodeId }) => nodeId);
     const svgFiles =
       svgIds.length > 0
         ? this.request<GetImagesResponse>(
-            `/images/${fileKey}?ids=${svgIds.join(",")}&scale=2&format=svg`,
-          ).then(({ images = {} }) => images)
+          `/images/${fileKey}?ids=${svgIds.join(",")}&scale=2&format=svg`,
+        ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
     const files = await Promise.all([pngFiles, svgFiles]).then(([f, l]) => ({ ...f, ...l }));
@@ -135,26 +162,39 @@ export class FigmaService {
     return Promise.all(downloads);
   }
 
+  /**
+   * 获取整个Figma文件
+   * @param fileKey - Figma文件key
+   * @param depth - 遍历深度（可选）
+   * @returns 简化的设计数据
+   */
   async getFile(fileKey: string, depth?: number): Promise<SimplifiedDesign> {
     try {
       const endpoint = `/files/${fileKey}${depth ? `?depth=${depth}` : ""}`;
-      Logger.log(`Retrieving Figma file: ${fileKey} (depth: ${depth ?? "default"})`);
+      Logger.log(`正在获取Figma文件: ${fileKey} (深度: ${depth ?? "默认"})`);
       const response = await this.request<GetFileResponse>(endpoint);
-      Logger.log("Got response");
+      Logger.log("已获取响应");
       const simplifiedResponse = parseFigmaResponse(response);
       writeLogs("figma-raw.yml", response);
       writeLogs("figma-simplified.yml", simplifiedResponse);
       return simplifiedResponse;
     } catch (e) {
-      console.error("Failed to get file:", e);
+      console.error("获取文件失败:", e);
       throw e;
     }
   }
 
+  /**
+   * 获取特定Figma节点
+   * @param fileKey - Figma文件key
+   * @param nodeId - 节点ID
+   * @param depth - 遍历深度（可选）
+   * @returns 简化的设计数据
+   */
   async getNode(fileKey: string, nodeId: string, depth?: number): Promise<SimplifiedDesign> {
     const endpoint = `/files/${fileKey}/nodes?ids=${nodeId}${depth ? `&depth=${depth}` : ""}`;
     const response = await this.request<GetFileNodesResponse>(endpoint);
-    Logger.log("Got response from getNode, now parsing.");
+    Logger.log("已从getNode获取响应，正在解析。");
     writeLogs("figma-raw.yml", response);
     const simplifiedResponse = parseFigmaResponse(response);
     writeLogs("figma-simplified.yml", simplifiedResponse);
@@ -162,6 +202,11 @@ export class FigmaService {
   }
 }
 
+/**
+ * 写入日志文件
+ * @param name - 日志文件名
+ * @param value - 要记录的数据
+ */
 function writeLogs(name: string, value: any) {
   try {
     if (process.env.NODE_ENV !== "development") return;
@@ -171,7 +216,7 @@ function writeLogs(name: string, value: any) {
     try {
       fs.accessSync(process.cwd(), fs.constants.W_OK);
     } catch (error) {
-      Logger.log("Failed to write logs:", error);
+      Logger.log("写入日志失败:", error);
       return;
     }
 
@@ -180,6 +225,6 @@ function writeLogs(name: string, value: any) {
     }
     fs.writeFileSync(`${logsDir}/${name}`, yaml.dump(value));
   } catch (error) {
-    console.debug("Failed to write logs:", error);
+    console.debug("写入日志失败:", error);
   }
 }

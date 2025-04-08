@@ -9,8 +9,8 @@ import { SimplifiedDesign } from "./services/simplify-node-response.js";
 import yaml from "js-yaml";
 
 export const Logger = {
-  log: (...args: any[]) => {},
-  error: (...args: any[]) => {},
+  log: (...args: any[]) => { },
+  error: (...args: any[]) => { },
 };
 
 export class FigmaMcpServer {
@@ -19,6 +19,10 @@ export class FigmaMcpServer {
   private transports: { [sessionId: string]: SSEServerTransport } = {};
   private httpServer: Server | null = null;
 
+  /**
+   * 创建Figma MCP服务器实例
+   * @param figmaApiKey - Figma API密钥，用于访问Figma API
+   */
   constructor(figmaApiKey: string) {
     this.figmaService = new FigmaService(figmaApiKey);
     this.server = new McpServer(
@@ -37,36 +41,39 @@ export class FigmaMcpServer {
     this.registerTools();
   }
 
+  /**
+   * 注册服务器提供的工具
+   * 这些工具将作为MCP功能暴露给客户端
+   */
   private registerTools(): void {
-    // Tool to get file information
+    // 获取文件信息的工具
     this.server.tool(
       "get_figma_data",
-      "When the nodeId cannot be obtained, obtain the layout information about the entire Figma file",
+      "当无法获取nodeId时，获取整个Figma文件的布局信息",
       {
         fileKey: z
           .string()
           .describe(
-            "The key of the Figma file to fetch, often found in a provided URL like figma.com/(file|design)/<fileKey>/...",
+            "要获取的Figma文件的key，通常在提供的URL中找到，如figma.com/(file|design)/<fileKey>/...",
           ),
         nodeId: z
           .string()
           .optional()
           .describe(
-            "The ID of the node to fetch, often found as URL parameter node-id=<nodeId>, always use if provided",
+            "要获取的节点的ID，通常作为URL参数node-id=<nodeId>找到，如果提供了就始终使用",
           ),
         depth: z
           .number()
           .optional()
           .describe(
-            "How many levels deep to traverse the node tree, only use if explicitly requested by the user",
+            "遍历节点树的深度，仅在用户明确要求时使用",
           ),
       },
       async ({ fileKey, nodeId, depth }) => {
         try {
           Logger.log(
-            `Fetching ${
-              depth ? `${depth} layers deep` : "all layers"
-            } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey}`,
+            `获取${depth ? `${depth}层深度的` : "所有层级的"
+            }${nodeId ? `文件中节点${nodeId}` : `整个文件`}${fileKey}`,
           );
 
           let file: SimplifiedDesign;
@@ -76,7 +83,7 @@ export class FigmaMcpServer {
             file = await this.figmaService.getFile(fileKey, depth);
           }
 
-          Logger.log(`Successfully fetched file: ${file.name}`);
+          Logger.log(`成功获取文件: ${file.name}`);
           const { nodes, globalVars, ...metadata } = file;
 
           const result = {
@@ -92,41 +99,41 @@ export class FigmaMcpServer {
           };
         } catch (error) {
           const message = error instanceof Error ? error.message : JSON.stringify(error);
-          Logger.error(`Error fetching file ${fileKey}:`, message);
+          Logger.error(`获取文件${fileKey}时出错:`, message);
           return {
             isError: true,
-            content: [{ type: "text", text: `Error fetching file: ${message}` }],
+            content: [{ type: "text", text: `获取文件时出错: ${message}` }],
           };
         }
       },
     );
 
-    // TODO: Clean up all image download related code, particularly getImages in Figma service
-    // Tool to download images
+    // 待优化：清理所有与图像下载相关的代码，特别是Figma服务中的getImages
+    // 下载图像的工具
     this.server.tool(
       "download_figma_images",
-      "Download SVG and PNG images used in a Figma file based on the IDs of image or icon nodes",
+      "根据图像或图标节点的ID下载Figma文件中使用的SVG和PNG图像",
       {
-        fileKey: z.string().describe("The key of the Figma file containing the node"),
+        fileKey: z.string().describe("包含节点的Figma文件的key"),
         nodes: z
           .object({
             nodeId: z
               .string()
-              .describe("The ID of the Figma image node to fetch, formatted as 1234:5678"),
+              .describe("要获取的Figma图像节点的ID，格式为1234:5678"),
             imageRef: z
               .string()
               .optional()
               .describe(
-                "If a node has an imageRef fill, you must include this variable. Leave blank when downloading Vector SVG images.",
+                "如果节点有imageRef填充，必须包含此变量。下载矢量SVG图像时留空。",
               ),
-            fileName: z.string().describe("The local name for saving the fetched file"),
+            fileName: z.string().describe("保存获取文件的本地名称"),
           })
           .array()
-          .describe("The nodes to fetch as images"),
+          .describe("要作为图像获取的节点"),
         localPath: z
           .string()
           .describe(
-            "The absolute path to the directory where images are stored in the project. If the directory does not exist, it will be created. The format of this path should respect the directory format of the operating system you are running on. Don't use any special character escaping in the path name either.",
+            "项目中存储图像的目录的绝对路径。如果目录不存在，将创建它。此路径的格式应尊重你正在运行的操作系统的目录格式。不要在路径名中使用任何特殊字符转义。",
           ),
       },
       async ({ fileKey, nodes, localPath }) => {
@@ -152,31 +159,35 @@ export class FigmaMcpServer {
             ...r,
           ]);
 
-          // If any download fails, return false
+          // 如果任何下载失败，则返回false
           const saveSuccess = !downloads.find((success) => !success);
           return {
             content: [
               {
                 type: "text",
                 text: saveSuccess
-                  ? `Success, ${downloads.length} images downloaded: ${downloads.join(", ")}`
-                  : "Failed",
+                  ? `成功，已下载${downloads.length}个图像: ${downloads.join(", ")}`
+                  : "失败",
               },
             ],
           };
         } catch (error) {
-          Logger.error(`Error downloading images from file ${fileKey}:`, error);
+          Logger.error(`从文件${fileKey}下载图像时出错:`, error);
           return {
             isError: true,
-            content: [{ type: "text", text: `Error downloading images: ${error}` }],
+            content: [{ type: "text", text: `下载图像时出错: ${error}` }],
           };
         }
       },
     );
   }
 
+  /**
+   * 连接到传输层
+   * @param transport - 要连接到的传输层接口
+   */
   async connect(transport: Transport): Promise<void> {
-    // Logger.log("Connecting to transport...");
+    // Logger.log("连接到传输层...");
     await this.server.connect(transport);
 
     Logger.log = (...args: any[]) => {
@@ -192,19 +203,23 @@ export class FigmaMcpServer {
       });
     };
 
-    Logger.log("Server connected and ready to process requests");
+    Logger.log("服务器已连接并准备处理请求");
   }
 
+  /**
+   * 启动HTTP服务器
+   * @param port - 服务器要监听的端口
+   */
   async startHttpServer(port: number): Promise<void> {
     const app = express();
 
     app.get("/sse", async (req: Request, res: Response) => {
-      console.log("Establishing new SSE connection");
+      console.log("建立新的SSE连接");
       const transport = new SSEServerTransport(
         "/messages",
         res as unknown as ServerResponse<IncomingMessage>,
       );
-      console.log(`New SSE connection established for sessionId ${transport.sessionId}`);
+      console.log(`为会话ID ${transport.sessionId} 建立了新的SSE连接`);
 
       this.transports[transport.sessionId] = transport;
       res.on("close", () => {
@@ -217,10 +232,10 @@ export class FigmaMcpServer {
     app.post("/messages", async (req: Request, res: Response) => {
       const sessionId = req.query.sessionId as string;
       if (!this.transports[sessionId]) {
-        res.status(400).send(`No transport found for sessionId ${sessionId}`);
+        res.status(400).send(`未找到会话ID ${sessionId} 的传输层`);
         return;
       }
-      console.log(`Received message for sessionId ${sessionId}`);
+      console.log(`收到会话ID ${sessionId} 的消息`);
       await this.transports[sessionId].handlePostMessage(req, res);
     });
 
@@ -228,15 +243,19 @@ export class FigmaMcpServer {
     Logger.error = console.error;
 
     this.httpServer = app.listen(port, () => {
-      Logger.log(`HTTP server listening on port ${port}`);
-      Logger.log(`SSE endpoint available at http://localhost:${port}/sse`);
-      Logger.log(`Message endpoint available at http://localhost:${port}/messages`);
+      Logger.log(`HTTP服务器在端口 ${port} 上监听`);
+      Logger.log(`SSE端点可访问: http://localhost:${port}/sse`);
+      Logger.log(`消息端点可访问: http://localhost:${port}/messages`);
     });
   }
 
+  /**
+   * 停止HTTP服务器
+   * @throws 如果HTTP服务器未运行则抛出错误
+   */
   async stopHttpServer(): Promise<void> {
     if (!this.httpServer) {
-      throw new Error("HTTP server is not running");
+      throw new Error("HTTP服务器未运行");
     }
 
     return new Promise((resolve, reject) => {

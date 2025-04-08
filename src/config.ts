@@ -2,9 +2,12 @@ import { config } from "dotenv";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-// Load environment variables from .env file
+// 从.env文件加载环境变量
 config();
 
+/**
+ * 服务器配置接口
+ */
 interface ServerConfig {
   figmaApiKey: string;
   port: number;
@@ -14,27 +17,40 @@ interface ServerConfig {
   };
 }
 
+/**
+ * 掩盖API密钥，只显示最后4位字符
+ * @param key - 需要掩盖的API密钥
+ * @returns 掩盖后的字符串
+ */
 function maskApiKey(key: string): string {
   if (key.length <= 4) return "****";
   return `****${key.slice(-4)}`;
 }
 
+/**
+ * 命令行参数接口
+ */
 interface CliArgs {
   "figma-api-key"?: string;
   port?: number;
 }
 
+/**
+ * 获取服务器配置
+ * @param isStdioMode - 是否在标准输入输出模式运行
+ * @returns 服务器配置对象
+ */
 export function getServerConfig(isStdioMode: boolean): ServerConfig {
-  // Parse command line arguments
+  // 解析命令行参数
   const argv = yargs(hideBin(process.argv))
     .options({
       "figma-api-key": {
         type: "string",
-        description: "Figma API key",
+        description: "Figma API密钥",
       },
       port: {
         type: "number",
-        description: "Port to run the server on",
+        description: "服务器运行的端口",
       },
     })
     .help()
@@ -50,7 +66,7 @@ export function getServerConfig(isStdioMode: boolean): ServerConfig {
     },
   };
 
-  // Handle FIGMA_API_KEY
+  // 处理FIGMA_API_KEY
   if (argv["figma-api-key"]) {
     config.figmaApiKey = argv["figma-api-key"];
     config.configSources.figmaApiKey = "cli";
@@ -59,7 +75,7 @@ export function getServerConfig(isStdioMode: boolean): ServerConfig {
     config.configSources.figmaApiKey = "env";
   }
 
-  // Handle PORT
+  // 处理PORT
   if (argv.port) {
     config.port = argv.port;
     config.configSources.port = "cli";
@@ -68,20 +84,20 @@ export function getServerConfig(isStdioMode: boolean): ServerConfig {
     config.configSources.port = "env";
   }
 
-  // Validate configuration
+  // 验证配置
   if (!config.figmaApiKey) {
-    console.error("FIGMA_API_KEY is required (via CLI argument --figma-api-key or .env file)");
+    console.error("需要FIGMA_API_KEY（通过CLI参数--figma-api-key或.env文件提供）");
     process.exit(1);
   }
 
-  // Log configuration sources
+  // 记录配置来源
   if (!isStdioMode) {
-    console.log("\nConfiguration:");
+    console.log("\n配置:");
     console.log(
-      `- FIGMA_API_KEY: ${maskApiKey(config.figmaApiKey)} (source: ${config.configSources.figmaApiKey})`,
+      `- FIGMA_API_KEY: ${maskApiKey(config.figmaApiKey)} (来源: ${config.configSources.figmaApiKey})`,
     );
-    console.log(`- PORT: ${config.port} (source: ${config.configSources.port})`);
-    console.log(); // Empty line for better readability
+    console.log(`- PORT: ${config.port} (来源: ${config.configSources.port})`);
+    console.log(); // 空行，提高可读性
   }
 
   return config;
