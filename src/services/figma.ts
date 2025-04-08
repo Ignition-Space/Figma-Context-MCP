@@ -139,6 +139,8 @@ export class FigmaService {
         ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
+    console.log('pngFiles====>', pngFiles);
+
     const svgIds = nodes.filter(({ fileType }) => fileType === "svg").map(({ nodeId }) => nodeId);
     const svgFiles =
       svgIds.length > 0
@@ -147,12 +149,17 @@ export class FigmaService {
         ).then(({ images = {} }) => images)
         : ({} as GetImagesResponse["images"]);
 
+    console.log('svgFiles====>', svgFiles);
+
     const files = await Promise.all([pngFiles, svgFiles]).then(([f, l]) => ({ ...f, ...l }));
+
+    console.log('files====>', files);
 
     const downloads = nodes
       .map(({ nodeId, fileName }) => {
         const imageUrl = files[nodeId];
         if (imageUrl) {
+          console.log('imageUrl====>', imageUrl);
           return downloadFigmaImage(fileName, localPath, imageUrl);
         }
         return false;

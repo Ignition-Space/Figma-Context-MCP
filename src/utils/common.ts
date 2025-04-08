@@ -29,9 +29,10 @@ export async function downloadFigmaImage(
     if (!fs.existsSync(localPath)) {
       fs.mkdirSync(localPath, { recursive: true });
     }
-
     // 构建完整的文件路径
     const fullPath = path.join(localPath, fileName);
+
+    console.log('fullPath====>', fullPath);
 
     // 使用fetch下载图像
     const response = await fetch(imageUrl, {

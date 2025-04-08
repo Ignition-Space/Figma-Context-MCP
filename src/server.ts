@@ -112,7 +112,15 @@ export class FigmaMcpServer {
     // 下载图像的工具
     this.server.tool(
       "download_figma_images",
-      "根据图像或图标节点的ID下载Figma文件中使用的SVG和PNG图像",
+      `
+      1. 根据图像或图标节点的ID下载Figma文件中使用的SVG和PNG图像
+      2. 扫描当前运行MCP工程目录，返回当前运行MCP工程目录的路径或者用户指定的文件路径
+      3. 如果目录不存在，将创建它；
+      4. 此路径的格式应尊重你正在运行的操作系统的目录格式；
+      5. 此路径的格式应与当前的前端工程的目录格式一致，例如：/Users/**/**/public/images；
+      6. 不要在路径名中使用任何特殊字符转义；
+      7. 返回路径为当前系统的绝对路径，示例：/Users/**/**/public/images，禁止返回相对路径，错误示例：public/images
+      `,
       {
         fileKey: z.string().describe("包含节点的Figma文件的key"),
         nodes: z
@@ -133,7 +141,7 @@ export class FigmaMcpServer {
         localPath: z
           .string()
           .describe(
-            "项目中存储图像的目录的绝对路径。如果目录不存在，将创建它。此路径的格式应尊重你正在运行的操作系统的目录格式。不要在路径名中使用任何特殊字符转义。",
+            `返回当前运行MCP工程目录的路径或者用户指定的文件路径 `,
           ),
       },
       async ({ fileKey, nodes, localPath }) => {
@@ -143,7 +151,9 @@ export class FigmaMcpServer {
             imageRef: string;
             fileName: string;
           }[];
+
           const fillDownloads = this.figmaService.getImageFills(fileKey, imageFills, localPath);
+
           const renderRequests = nodes
             .filter(({ imageRef }) => !imageRef)
             .map(({ nodeId, fileName }) => ({
@@ -159,8 +169,13 @@ export class FigmaMcpServer {
             ...r,
           ]);
 
+          console.log('downloads====>', downloads);
+
           // 如果任何下载失败，则返回false
           const saveSuccess = !downloads.find((success) => !success);
+
+          console.log('saveSuccess====>', saveSuccess);
+
           return {
             content: [
               {
