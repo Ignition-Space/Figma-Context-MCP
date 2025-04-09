@@ -19,11 +19,15 @@ export interface ColorValue {
  * @returns 返回一个Promise，解析为保存图像的完整文件路径
  * @throws 如果下载失败则抛出错误
  */
-export async function downloadFigmaImage(
+export async function downloadFigmaImage({
+  fileName,
+  localPath,
+  imageUrl,
+}: {
   fileName: string,
   localPath: string,
   imageUrl: string,
-): Promise<string> {
+}): Promise<string> {
   try {
     // 确保本地路径存在
     if (!fs.existsSync(localPath)) {

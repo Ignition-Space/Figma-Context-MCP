@@ -66,6 +66,7 @@ export interface SimplifiedNode {
   text?: string;
   textStyle?: string;
   // appearance
+  background?: string;
   fills?: string;
   styles?: string;
   strokes?: string;
@@ -74,6 +75,7 @@ export interface SimplifiedNode {
   borderRadius?: string;
   // layout & alignment
   layout?: string;
+  hasBackgroundImage?: boolean;
   // backgroundColor?: ColorValue; // Deprecated by Figma API
   // for rect-specific strokes, etc.
   // children
@@ -91,18 +93,18 @@ export type CSSRGBAColor = `rgba(${number}, ${number}, ${number}, ${number})`;
 export type CSSHexColor = `#${string}`;
 export type SimplifiedFill =
   | {
-      type?: Paint["type"];
-      hex?: string;
-      rgba?: string;
-      opacity?: number;
-      imageRef?: string;
-      scaleMode?: string;
-      gradientHandlePositions?: Vector[];
-      gradientStops?: {
-        position: number;
-        color: ColorValue | string;
-      }[];
-    }
+    type?: Paint["type"];
+    hex?: string;
+    rgba?: string;
+    opacity?: number;
+    imageRef?: string;
+    scaleMode?: string;
+    gradientHandlePositions?: Vector[];
+    gradientStops?: {
+      position: number;
+      color: ColorValue | string;
+    }[];
+  }
   | CSSRGBAColor
   | CSSHexColor;
 
@@ -214,10 +216,14 @@ function parseNode(
     simplified.textStyle = findOrCreateVar(globalVars, textStyle, "style");
   }
 
+
   // fills & strokes
   if (hasValue("fills", n) && Array.isArray(n.fills) && n.fills.length) {
     // const fills = simplifyFills(n.fills.map(parsePaint));
     const fills = n.fills.map(parsePaint);
+    if (n.fills.some((fill) => fill.type === "IMAGE")) {
+      simplified.hasBackgroundImage = true;
+    }
     simplified.fills = findOrCreateVar(globalVars, fills, "fill");
   }
 
@@ -242,8 +248,6 @@ function parseNode(
     simplified.text = n.characters;
   }
 
-  // border/corner
-
   // opacity
   if (hasValue("opacity", n) && typeof n.opacity === "number" && n.opacity !== 1) {
     simplified.opacity = n.opacity;
@@ -252,6 +256,7 @@ function parseNode(
   if (hasValue("cornerRadius", n) && typeof n.cornerRadius === "number") {
     simplified.borderRadius = `${n.cornerRadius}px`;
   }
+
   if (hasValue("rectangleCornerRadii", n, isRectangleCornerRadii)) {
     simplified.borderRadius = `${n.rectangleCornerRadii[0]}px ${n.rectangleCornerRadii[1]}px ${n.rectangleCornerRadii[2]}px ${n.rectangleCornerRadii[3]}px`;
   }

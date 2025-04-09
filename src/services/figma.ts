@@ -114,7 +114,11 @@ export class FigmaService {
       if (!imageUrl) {
         return "";
       }
-      return downloadFigmaImage(fileName, localPath, imageUrl);
+      return downloadFigmaImage({
+        fileName,
+        localPath,
+        imageUrl,
+      });
     });
     return Promise.all(promises);
   }
@@ -126,11 +130,17 @@ export class FigmaService {
    * @param localPath - 保存图像的本地路径
    * @returns 下载的文件名数组
    */
-  async getImages(
+  async getImages({
+    fileKey,
+    nodes,
+    localPath,
+    downloadType = 'render',
+  }: {
     fileKey: string,
     nodes: FetchImageParams[],
     localPath: string,
-  ): Promise<string[]> {
+    downloadType?: 'original' | 'render',
+  }): Promise<string[]> {
     const pngIds = nodes.filter(({ fileType }) => fileType === "png").map(({ nodeId }) => nodeId);
     const pngFiles =
       pngIds.length > 0
@@ -156,11 +166,17 @@ export class FigmaService {
     console.log('files====>', files);
 
     const downloads = nodes
-      .map(({ nodeId, fileName }) => {
+      .map(({ nodeId, fileName, fileType }) => {
         const imageUrl = files[nodeId];
         if (imageUrl) {
           console.log('imageUrl====>', imageUrl);
-          return downloadFigmaImage(fileName, localPath, imageUrl);
+          return downloadFigmaImage({
+            fileName: downloadType === 'original' ?
+              `original-${fileName}.${fileType}` : `${fileName}.${fileType}`,
+            // fileName: downloadType === 'original' ? `original-${fileName}` : fileName,
+            localPath,
+            imageUrl,
+          });
         }
         return false;
       })
