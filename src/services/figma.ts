@@ -167,7 +167,8 @@ export class FigmaService {
 
     const downloads = nodes
       .map(({ nodeId, fileName, fileType }) => {
-        const imageUrl = files[nodeId];
+        const imageUrl = files[nodeId] || files[nodeId.replace('-', ':')];
+        console.log('imageUrl====>', nodeId, imageUrl);
         if (imageUrl) {
           console.log('imageUrl====>', imageUrl);
           return downloadFigmaImage({

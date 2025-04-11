@@ -223,7 +223,7 @@ export class FigmaMcpServer {
               },
               {
                 type: "text",
-                text: '成功，已下载项目原始图像，路径为：' + originalDownloadFiles[0]
+                text: originalDownloadFiles[0] ? '成功，已下载项目原始图像，路径为：' + originalDownloadFiles[0] : '失败，请重新再下载原图'
               },
             ],
           };
