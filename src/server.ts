@@ -7,6 +7,7 @@ import { IncomingMessage, ServerResponse, Server } from "http";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SimplifiedDesign } from "./services/simplify-node-response.js";
 import yaml from "js-yaml";
+import fs from "fs";
 
 export const Logger = {
   log: (...args: any[]) => { },
@@ -222,8 +223,9 @@ export class FigmaMcpServer {
                   : "失败",
               },
               {
-                type: "text",
-                text: originalDownloadFiles[0] ? '成功，已下载项目原始图像，路径为：' + originalDownloadFiles[0] : '失败，请重新再下载原图'
+                type: "image",
+                data: originalDownloadFiles[0] ? fs.readFileSync(originalDownloadFiles[0], 'base64') : '',
+                mimeType: 'image/png',
               },
             ],
           };
